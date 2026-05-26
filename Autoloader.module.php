@@ -19,7 +19,7 @@ class Autoloader extends WireData implements Module {
       'author' => "Ivan Milincic",
       "href" => "https://kreativan.dev",
       'singular' => true,
-      'autoload' => 'admin',
+      'autoload' => true,
       'requires' => ['ProcessWire>=3.0.0'],
     );
   }
@@ -61,20 +61,22 @@ class Autoloader extends WireData implements Module {
      * The GET key is the module name converted to kebab-case (e.g. MyModule -> my-module).
      * Cached until modules are refreshed.
      */
-    $actionModules = $this->wire()->cache->get('autoloader_action_modules', WireCache::expireNever, function () {
-      $map = [];
-      $modulesDir = $this->wire()->config->paths->siteModules;
-      foreach (glob($modulesDir . '*/autoload/actions/', GLOB_ONLYDIR) as $actionsDir) {
-        $moduleName = basename(dirname(dirname($actionsDir)));
-        $getKey = strtolower(preg_replace('/([a-z])([A-Z])/', '$1-$2', $moduleName));
-        $map[$getKey] = $actionsDir;
+    if ($this->adminHelper->isAdmin()) {
+      $actionModules = $this->wire()->cache->get('autoloader_action_modules', WireCache::expireNever, function () {
+        $map = [];
+        $modulesDir = $this->wire()->config->paths->siteModules;
+        foreach (glob($modulesDir . '*/autoload/actions/', GLOB_ONLYDIR) as $actionsDir) {
+          $moduleName = basename(dirname(dirname($actionsDir)));
+          $getKey = strtolower(preg_replace('/([a-z])([A-Z])/', '$1-$2', $moduleName));
+          $map[$getKey] = $actionsDir;
+        }
+        return $map;
+      });
+      $rootPath = $this->wire()->config->paths->root;
+      foreach ($actionModules as $getKey => $actionsDir) {
+        $relDir = '/' . ltrim(str_replace($rootPath, '', $actionsDir), '/');
+        $this->loadActions($getKey, $relDir);
       }
-      return $map;
-    });
-    $rootPath = $this->wire()->config->paths->root;
-    foreach ($actionModules as $getKey => $actionsDir) {
-      $relDir = '/' . ltrim(str_replace($rootPath, '', $actionsDir), '/');
-      $this->loadActions($getKey, $relDir);
     }
   }
 
